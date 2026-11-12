@@ -68,7 +68,10 @@
 (defcfn scheme-manager-get-scheme "gtk_source_style_scheme_manager_get_scheme"
   [:pointer :string] :pointer)
 
+(defcfn source-buffer-new "gtk_source_buffer_new" [:pointer] :pointer)
 (defcfn source-buffer-new-with-language "gtk_source_buffer_new_with_language" [:pointer] :pointer)
+(defcfn lang-manager-guess-language "gtk_source_language_manager_guess_language"
+  [:pointer :string :string] :pointer)
 (defcfn source-buffer-set-language "gtk_source_buffer_set_language" [:pointer :pointer] :void)
 (defcfn source-buffer-set-style-scheme "gtk_source_buffer_set_style_scheme" [:pointer :pointer] :void)
 (defcfn source-buffer-set-highlight-matching-brackets

@@ -120,6 +120,16 @@
   (Thread/sleep 300)
   (check "trash removes the file" (not (fs/exists? (f "novy.cpp"))))
 
+  ;; 6b. files that are not C++ open as text (a .clj once crashed the app)
+  (spit (f "poznamky.txt") "jen text\n")
+  (spit (f "skript.clj") "(ns skript)\n(defn hello [] (println \"hi\"))\n")
+  (spit (f "README") "no extension at all\n")
+  (doseq [n ["poznamky.txt" "skript.clj" "README"]]
+    (act! [:tree/click (f n) false])
+    (check (str n " opens") (= (f n) (:active @app/state))))
+  (check "Run is off for a non-C++ file" (not (#'app/can-run? @app/state)))
+  (shot "05b-clj-file")
+
   ;; 7. shortcuts (Ctrl, or Cmd on a Mac)
   (let [mod (if platform/mac? {:cmd? true} {:ctrl? true})
         before (:font-size @app/state)]

@@ -11,7 +11,7 @@
   (:require [babashka.fs :as fs]
             [clojure.string :as str]))
 
-(def version "0.1.0")
+(def version "0.1.1")
 
 (defn parse-args [args env-cwd]
   (let [arg (first (remove #(or (str/starts-with? % "-") (str/blank? %)) args))

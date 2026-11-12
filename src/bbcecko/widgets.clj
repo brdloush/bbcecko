@@ -11,6 +11,7 @@
    There is one editor and one console in the app, so their bookkeeping is a
    single atom each rather than a table keyed by widget."
   (:require [babashka.ffi :as ffi]
+            [babashka.fs :as fs]
             [bbcecko.gtk :as gs]
             [clojure.string :as str]
             [gtkiccup.core :as ui]
@@ -72,8 +73,9 @@
     (when-not (g/null? s) s)))
 
 (defn- language-for
-  "C++ for anything C-like: students' headers are C++ headers. Plain text
-   otherwise -- a .txt input file needs no colours."
+  "C++ for anything C-like: students' headers are C++ headers. Anything else
+   is whatever GtkSourceView guesses from the file name (.clj, .py, .md ...),
+   and nil -- plain text -- when it has no idea."
   [path]
   (let [ext (some-> (re-find #"\.([^./]+)$" (str path)) second str/lower-case)
         id  (case ext
@@ -85,9 +87,11 @@
               ("sh" "bash")                  "sh"
               ("json")                       "json"
               nil)]
-    (when id
-      (let [l (gs/lang-manager-get-language (gs/lang-manager-default) id)]
-        (when-not (g/null? l) l)))))
+    (let [lm (gs/lang-manager-default)
+          l  (if id
+               (gs/lang-manager-get-language lm id)
+               (gs/lang-manager-guess-language lm (str (fs/file-name path)) nil))]
+      (when-not (g/null? l) l))))
 
 (defn- emit! [event]
   (when-let [f (get-in @editor [:props :emit])]
@@ -123,7 +127,13 @@
                   [:pointer :pointer :pointer] :void)))
 
 (defn- new-buffer! [path text scheme-id]
-  (let [buf (gs/source-buffer-new-with-language (or (language-for path) ffi/null))]
+  ;; Not gtk_source_buffer_new_with_language: it refuses a NULL language and
+  ;; returns NULL, and the next call on that buffer took the whole app down
+  ;; when a student opened a .clj file. A plain buffer, then a language if
+  ;; there is one.
+  (let [buf (gs/source-buffer-new nil)]
+    (when-let [lang (language-for path)]
+      (gs/source-buffer-set-language buf lang))
     (gs/source-buffer-set-highlight-matching-brackets buf 1)
     (when-let [s (scheme scheme-id)] (gs/source-buffer-set-style-scheme buf s))
     ;; loading the file must not be the first undo step
