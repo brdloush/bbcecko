@@ -215,6 +215,26 @@
   (scroll-to-cursor! view buf)
   (gs/widget-grab-focus view))
 
+(def ^:private scrollable-vadjustment
+  (delay (ffi/cfn "gtk_scrollable_get_vadjustment" [:pointer] :pointer)))
+
+(defn- show-cursor-settled!
+  "Brings the cursor into view after a buffer swap. Sometimes (a race, seen on
+   Linux and macOS) the view kept a scroll offset that was computed before
+   the new text had its real line heights, and a short file opened with its
+   first lines above the visible area. So: start at the top, then check
+   again once GTK has laid the text out, and once more a bit later."
+  [view buf path]
+  (g/adjustment-set-value (@scrollable-vadjustment view) 0.0)
+  (gs/text-view-scroll-mark-onscreen view (gs/text-buffer-get-insert buf))
+  ;; same buffer object still shown: a tab closed and reopened in the meantime
+  ;; has a new buffer, and the old one is already freed
+  (let [again #(when (and (= path (:doc @editor))
+                          (= (addr buf) (some-> (get @buffers path) addr)))
+                 (gs/text-view-scroll-mark-onscreen view (gs/text-buffer-get-insert buf)))]
+    (ui/later! again)
+    (future (Thread/sleep 250) (ui/later! again))))
+
 (defn- apply-editor! [view p changed]
   (swap! editor assoc :props p)
   (when (changed :scheme)
@@ -225,7 +245,7 @@
           buf  (or (get @buffers path) (new-buffer! path (:initial-text p) (:scheme p)))]
       (swap! editor assoc :doc path)
       (gs/text-view-set-buffer view buf)
-      (gs/text-view-scroll-mark-onscreen view (gs/text-buffer-get-insert buf))
+      (show-cursor-settled! view buf path)
       (gs/widget-grab-focus view)
       (emit! (into [:cursor] (cursor-of buf)))))
   (let [buf (get @buffers (:doc p))]
