@@ -1,0 +1,26 @@
+name: Tap install
+
+# Installs the published app from the tap, exactly as a user would:
+#   brew install brdloush/tap/bbcecko
+# Run it by hand after a release lands in brdloush/homebrew-tap.
+on:
+  workflow_dispatch:
+
+jobs:
+  tap-install:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - name: brew install brdloush/tap/bbcecko
+        env:
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install brdloush/tap/bbcecko
+
+      - name: brew test
+        run: brew test brdloush/tap/bbcecko
+
+      - name: bbcecko --doctor
+        run: |
+          which bbcecko
+          bbcecko --version
+          bbcecko --doctor
