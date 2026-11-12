@@ -19,8 +19,10 @@ hand.
   longer taps a third-party tap for a dependency, so `depends_on
   "borkdude/brew/babashka"` would make every user `brew tap borkdude/brew`
   first. The version is `bb-version` in `formula.clj`;
-- builds one uberjar from the tagged source, so the installed app needs no
-  network and no git at run time;
+- installs the jar that `.github/workflows/release.yml` attached to the
+  GitHub release (the app, gtkiccup and Replicant in one file). Nothing is
+  built inside `brew install`: Homebrew's sandbox would not let babashka
+  fetch gtkiccup into `~/.gitlibs` there;
 - installs a `bbcecko` launcher: `bbcecko`, `bbcecko <folder>`,
   `bbcecko --doctor`, `bbcecko --version`.
 
@@ -30,7 +32,8 @@ itself requires, so a working `brew` means a working compiler.
 ## Releasing a version
 
 1. Bump `version` in `src/bbcecko/main.clj`, commit, push.
-2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`.
+2. Tag and push: `git tag v0.1.0 && git push origin v0.1.0`. The Release
+   workflow builds `bbcecko-0.1.0.jar` and attaches it to the release.
 3. Write the formula into the tap and push it:
    ```bash
    bb formula release 0.1.0 ../homebrew-tap/Formula/bbcecko.rb

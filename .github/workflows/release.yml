@@ -1,0 +1,58 @@
+name: Release
+
+# Builds bbcecko-<version>.jar (the app, gtkiccup and Replicant in one file)
+# and attaches it to the GitHub release of the tag. The Homebrew formula
+# downloads that jar, so `brew install` builds nothing and fetches nothing
+# from inside Homebrew's sandbox.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag to release, e.g. v0.1.0"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  jar:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+
+      - name: Install babashka
+        run: |
+          curl -sSfL -o install-bb https://raw.githubusercontent.com/babashka/babashka/master/install
+          chmod +x install-bb
+          sudo ./install-bb
+          bb --version
+
+      - name: Build the jar
+        run: |
+          bb jar
+          V="${TAG#v}"
+          cp target/bbcecko.jar "bbcecko-$V.jar"
+          bb -cp "bbcecko-$V.jar" -m bbcecko.main -- --version | grep -q "bbcecko $V"
+
+      - name: Attach it to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          V="${TAG#v}"
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "bbcecko-$V.jar" --clobber
+          else
+            gh release create "$TAG" "bbcecko-$V.jar" --title "bbCéčko $V" --notes "On a Mac:
+
+          \`\`\`bash
+          brew install brdloush/tap/bbcecko
+          bbcecko --doctor
+          bbcecko
+          \`\`\`"
+          fi

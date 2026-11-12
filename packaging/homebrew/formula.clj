@@ -1,14 +1,17 @@
 ;; Writes the Homebrew formula for bbcecko.
 ;;
-;;   bb formula release 0.1.0 [out.rb]   formula for the GitHub tag v0.1.0
-;;                                       (downloads the tarball for its sha256)
-;;   bb formula local <dir>              formula + tarball of HEAD in <dir>, with a
-;;                                       file:// url -- what CI installs to test it
+;;   bb formula release 0.1.0 [out.rb]   formula for the jar attached to the
+;;                                       GitHub release v0.1.0 (release.yml)
+;;   bb formula local <dir>              builds the jar of this checkout into <dir>
+;;                                       and a formula with a file:// url to it --
+;;                                       what CI installs to test it
 ;;
-;; The formula builds one uberjar from the source at install time (bb fetches
-;; gtkiccup and Replicant then), so the installed app needs no network and no
-;; git. The launcher runs it with `bb -cp jar -m`, not `bb -jar`: with -jar,
-;; babashka takes --version and --help for itself.
+;; The formula installs a ready jar: the app, gtkiccup and Replicant in one
+;; file. Nothing is built at install time. (It used to build the jar inside
+;; brew install, but Homebrew's sandbox forbids writing ~/.gitlibs, so bb could
+;; not fetch gtkiccup on a clean Mac.) The launcher runs the jar with
+;; `bb -cp jar -m`, not `bb -jar`: with -jar, babashka takes --version and
+;; --help for itself.
 ;;
 ;; babashka itself is a resource of the formula, not a dependency: it is not in
 ;; homebrew-core, and Homebrew no longer taps a third-party tap for a
@@ -68,7 +71,6 @@
   url \"" url "\"
   sha256 \"" sha "\"
   license \"MIT\"
-  head \"https://github.com/brdloush/bbcecko.git\", branch: \"main\"
 
   depends_on \"adwaita-icon-theme\"
   depends_on \"gtk4\"
@@ -92,8 +94,7 @@
     resource(\"babashka\").stage { (libexec/\"bin\").install \"bb\" }
     bb = libexec/\"bin/bb\"
     # one jar with the app, gtkiccup and Replicant: nothing to fetch at run time
-    system bb, \"--config\", \"bb.edn\", \"uberjar\", \"bbcecko.jar\", \"-m\", \"bbcecko.main\"
-    libexec.install \"bbcecko.jar\"
+    libexec.install \"bbcecko-#{version}.jar\" => \"bbcecko.jar\"
     (bin/\"bbcecko\").write <<~SH
       #!/bin/bash
       # Started from a terminal with no argument: the current folder is the root.
@@ -127,27 +128,30 @@ end
   (case mode
     "release"
     (let [version (or a main/version)
-          url (str "https://github.com/brdloush/bbcecko/archive/refs/tags/v" version ".tar.gz")
-          tmp (str (fs/create-temp-file {:suffix ".tar.gz"}))
-          resp (http/get url {:as :stream :throw false})]
-      (when (not= 200 (:status resp))
-        (binding [*out* *err*] (println "no tarball at" url "- is the tag v" version "pushed?"))
+          jar     (str "bbcecko-" version ".jar")
+          rel     (-> (http/get (str "https://api.github.com/repos/brdloush/bbcecko/releases/tags/v" version)
+                                {:headers {"Accept" "application/vnd.github+json"} :throw false})
+                      :body (cheshire.core/parse-string true))
+          asset   (first (filter #(= jar (:name %)) (:assets rel)))]
+      (when-not (some-> asset :digest (clojure.string/starts-with? "sha256:"))
+        (binding [*out* *err*]
+          (println "no" jar "with a sha256 on the release v" version "- did release.yml run?"))
         (System/exit 1))
-      (io/copy (:body resp) (io/file tmp))
-      (let [rb (formula {:url url :sha (sha256 tmp) :version version})]
+      (let [rb (formula {:url (:browser_download_url asset) :sha (subs (:digest asset) 7)
+                         :version version})]
         (if b (spit b rb) (print rb))
         (flush)))
 
     "local"
     (let [dir (str (fs/absolutize (or a "target/formula")))
           version main/version
-          tarball (str (fs/path dir (str "bbcecko-" version ".tar.gz")))]
+          jar (str (fs/path dir (str "bbcecko-" version ".jar")))]
       (fs/create-dirs dir)
-      (p/shell "git" "archive" "--format=tar.gz" (str "--prefix=bbcecko-" version "/")
-               "-o" tarball "HEAD")
+      (p/shell "bb" "--config" "bb.edn" "jar")
+      (fs/copy "target/bbcecko.jar" jar {:replace-existing true})
       (spit (str (fs/path dir "bbcecko.rb"))
-            (formula {:url (str "file://" tarball) :sha (sha256 tarball) :version version}))
-      (println "wrote" (str (fs/path dir "bbcecko.rb")) "and" tarball))
+            (formula {:url (str "file://" jar) :sha (sha256 jar) :version version}))
+      (println "wrote" (str (fs/path dir "bbcecko.rb")) "and" jar))
 
     (do (println "usage: bb formula release [version] [out.rb] | bb formula local [dir]")
         (System/exit 1))))

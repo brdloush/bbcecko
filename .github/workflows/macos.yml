@@ -63,9 +63,13 @@ jobs:
       - name: Formula for this commit
         run: bb formula local "$RUNNER_TEMP/formula" && cat "$RUNNER_TEMP/formula/bbcecko.rb"
 
-      # a user has no babashka and no borkdude tap: neither may we
-      - name: Forget babashka and its tap
-        run: brew uninstall babashka && brew untap borkdude/brew && ! command -v bb
+      # a user has no babashka, no borkdude tap and no deps caches: neither
+      # may we, or a formula that fetches something at install time passes
+      # here and fails on their Mac
+      - name: Forget babashka, its tap and the deps caches
+        run: |
+          brew uninstall babashka && brew untap borkdude/brew && ! command -v bb
+          rm -rf ~/.gitlibs ~/.m2 ~/.deps.clj
 
       - name: brew install from a local tap
         env:
