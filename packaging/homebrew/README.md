@@ -12,8 +12,13 @@ hand.
 
 ## What the formula does
 
-- depends on babashka (`borkdude/brew/babashka`), `gtk4`, `gtksourceview5`
-  and `adwaita-icon-theme` (Homebrew's GTK ships no icons);
+- depends on `gtk4`, `gtksourceview5` and `adwaita-icon-theme` (Homebrew's
+  GTK ships no icons);
+- carries its own babashka (a `resource`, from babashka's GitHub release, kept
+  in the keg's `libexec`). babashka is not in homebrew-core, and Homebrew no
+  longer taps a third-party tap for a dependency, so `depends_on
+  "borkdude/brew/babashka"` would make every user `brew tap borkdude/brew`
+  first. The version is `bb-version` in `formula.clj`;
 - builds one uberjar from the tagged source, so the installed app needs no
   network and no git at run time;
 - installs a `bbcecko` launcher: `bbcecko`, `bbcecko <folder>`,

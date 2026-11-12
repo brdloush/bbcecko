@@ -9,7 +9,15 @@
 ;; gtkiccup and Replicant then), so the installed app needs no network and no
 ;; git. The launcher runs it with `bb -cp jar -m`, not `bb -jar`: with -jar,
 ;; babashka takes --version and --help for itself.
+;;
+;; babashka itself is a resource of the formula, not a dependency: it is not in
+;; homebrew-core, and Homebrew no longer taps a third-party tap for a
+;; dependency -- `depends_on "borkdude/brew/babashka"` made every user run
+;; `brew tap borkdude/brew` by hand first. The copy lives in this keg's
+;; libexec, so it never clashes with a babashka installed on its own.
 (require '[babashka.fs :as fs]
+         '[cheshire.core]
+         '[clojure.string]
          '[babashka.http-client :as http]
          '[babashka.process :as p]
          '[bbcecko.main :as main]
@@ -24,7 +32,36 @@
             (when (pos? n) (.update md buf 0 n) (recur))))))
     (apply str (map #(format "%02x" %) (.digest md)))))
 
+(def bb-version
+  "The babashka the formula carries. Bump it here, then re-release."
+  "1.13.229")
+
+(defn bb-assets
+  "{\"macos-aarch64\" {:url .. :sha ..} ...} from the babashka release, using
+   the sha256 digests GitHub publishes for each asset."
+  [version]
+  (let [rel (-> (http/get (str "https://api.github.com/repos/babashka/babashka/releases/tags/v" version)
+                          {:headers {"Accept" "application/vnd.github+json"}})
+                :body
+                (cheshire.core/parse-string true))]
+    (into {}
+          (for [plat ["macos-aarch64" "macos-amd64" "linux-amd64"]
+                :let [name (str "babashka-" version "-" plat ".tar.gz")
+                      asset (first (filter #(= name (:name %)) (:assets rel)))]]
+            (do (when-not (some-> asset :digest (clojure.string/starts-with? "sha256:"))
+                  (throw (ex-info (str "no sha256 digest for " name) {:asset asset})))
+                [plat {:url (:browser_download_url asset)
+                       :sha (subs (:digest asset) 7)}])))))
+
+(defn- bb-resource [{:keys [url sha]}]
+  (str "      resource \"babashka\" do
+        url \"" url "\"
+        sha256 \"" sha "\"
+      end
+"))
+
 (defn formula [{:keys [url sha version]}]
+  (let [assets (bb-assets bb-version)]
   (str "class Bbcecko < Formula
   desc \"Simple, friendly C++ editor for students: highlight, Run, readable errors\"
   homepage \"https://github.com/brdloush/bbcecko\"
@@ -33,13 +70,27 @@
   license \"MIT\"
   head \"https://github.com/brdloush/bbcecko.git\", branch: \"main\"
 
-  depends_on \"borkdude/brew/babashka\"
+  depends_on \"adwaita-icon-theme\"
   depends_on \"gtk4\"
   depends_on \"gtksourceview5\"
-  depends_on \"adwaita-icon-theme\"
+
+  # babashka runs the app. It is not in homebrew-core, and depending on the
+  # borkdude/brew tap would make every user tap it by hand first, so the
+  # formula carries its own copy, private to this keg.
+  on_macos do
+    on_arm do
+" (bb-resource (assets "macos-aarch64")) "    end
+    on_intel do
+" (bb-resource (assets "macos-amd64")) "    end
+  end
+  on_linux do
+    on_intel do
+" (bb-resource (assets "linux-amd64")) "    end
+  end
 
   def install
-    bb = Formula[\"borkdude/brew/babashka\"].opt_bin/\"bb\"
+    resource(\"babashka\").stage { (libexec/\"bin\").install \"bb\" }
+    bb = libexec/\"bin/bb\"
     # one jar with the app, gtkiccup and Replicant: nothing to fetch at run time
     system bb, \"--config\", \"bb.edn\", \"uberjar\", \"bbcecko.jar\", \"-m\", \"bbcecko.main\"
     libexec.install \"bbcecko.jar\"
@@ -70,7 +121,7 @@
     assert_match version.to_s, shell_output(\"#{bin}/bbcecko --version\")
   end
 end
-"))
+")))
 
 (defn -main [& [mode a b]]
   (case mode

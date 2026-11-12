@@ -63,6 +63,10 @@ jobs:
       - name: Formula for this commit
         run: bb formula local "$RUNNER_TEMP/formula" && cat "$RUNNER_TEMP/formula/bbcecko.rb"
 
+      # a user has no babashka and no borkdude tap: neither may we
+      - name: Forget babashka and its tap
+        run: brew uninstall babashka && brew untap borkdude/brew && ! command -v bb
+
       - name: brew install from a local tap
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
