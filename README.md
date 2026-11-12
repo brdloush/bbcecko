@@ -77,3 +77,7 @@ and takes screenshots:
 ../gtkiccup/scripts/headless bb --config bb.edn dev/shot.clj ~/skola/cpp /tmp/shot \
   '[[:theme/set :hacker]]' '[:shot "hacker"]'
 ```
+
+## License
+
+[MIT](LICENSE)
