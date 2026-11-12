@@ -13,6 +13,14 @@
                     "bb" "--config" "bb.edn" "-Xmx256m" "-m" "bbcecko.main"
                     *command-line-args*)}
 
+  jar {:doc "Build target/bbcecko.jar: the app and its deps in one file, run with bb -jar."
+       :task (do (babashka.fs/create-dirs "target")
+                 (shell "bb" "--config" "bb.edn" "uberjar" "target/bbcecko.jar" "-m" "bbcecko.main"))
+       :requires ([babashka.fs])}
+
+  formula {:doc "Write the Homebrew formula. bb formula release [version] [out.rb] | bb formula local [dir]"
+           :task (apply shell "bb" "--config" "bb.edn" "packaging/homebrew/formula.clj" *command-line-args*)}
+
   install {:doc "Put bbcecko on your PATH (~/.local/bin) and in the application menu."
            :requires ([bbcecko.desktop :as d])
            :task (d/install! (System/getProperty "user.dir"))}

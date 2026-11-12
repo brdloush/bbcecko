@@ -5,4 +5,4 @@ DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 if [ $# -eq 0 ] && [ -t 1 ]; then
   export BBCECKO_CWD="$PWD"
 fi
-exec bb --config "$DIR/bb.edn" -Xmx256m -m bbcecko.main "$@"
+exec bb --config "$DIR/bb.edn" -Xmx256m -m bbcecko.main -- "$@"

@@ -46,3 +46,38 @@ jobs:
           name: macos-screenshots
           path: shots
           if-no-files-found: warn
+
+  # Installs the app the way a user would, through Homebrew, from a formula
+  # made for this very commit. Proves the formula before it goes to the tap.
+  brew-formula:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Install babashka (to write the formula)
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+        run: brew install borkdude/brew/babashka
+
+      - name: Formula for this commit
+        run: bb formula local "$RUNNER_TEMP/formula" && cat "$RUNNER_TEMP/formula/bbcecko.rb"
+
+      - name: brew install from a local tap
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: |
+          brew tap-new --no-git local/bbcecko
+          TAP="$(brew --repository)/Library/Taps/local/homebrew-bbcecko"
+          cp "$RUNNER_TEMP/formula/bbcecko.rb" "$TAP/Formula/"
+          brew install --verbose local/bbcecko/bbcecko
+
+      - name: brew test
+        run: brew test local/bbcecko/bbcecko
+
+      - name: bbcecko --doctor
+        run: |
+          which bbcecko
+          bbcecko --version
+          bbcecko --doctor
