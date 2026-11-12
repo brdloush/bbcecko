@@ -51,7 +51,8 @@ collect2: error: ld returned 1 exit status")
         (is (fs/executable? (:out r))))
       (let [r (c/compile! (c/detect) dir bad)]
         (is (not (:ok? r)))
-        (is (= 3 (:line (first (:diagnostics r)))))
+        ;; GCC points at the line after the missing ;, Clang at its own line
+        (is (#{2 3} (:line (first (:diagnostics r)))))
         (is (= :tip/missing-semicolon (:tip (first (:diagnostics r))))))
       (fs/delete-tree dir))))
 

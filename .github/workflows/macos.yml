@@ -9,12 +9,12 @@ jobs:
     runs-on: macos-latest
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           path: bbcecko
 
       # bb.edn expects gtkiccup at ../gtkiccup (see TODO.md)
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           repository: brdloush/gtkiccup
           path: gtkiccup
@@ -47,7 +47,7 @@ jobs:
 
       - name: Upload screenshots
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: macos-screenshots
           path: shots
