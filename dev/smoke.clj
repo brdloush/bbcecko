@@ -6,6 +6,10 @@
 ;; Copies examples/ to a temp folder, starts on the welcome screen, picks that
 ;; folder, runs a program with input, a broken program, an endless one, and
 ;; every theme. Writes PNGs to <out-dir>. Exits 1 if any check failed.
+;;
+;; The app runs on the MAIN thread and the checks on a worker: macOS lets
+;; only the main thread create windows (NSWindow), and kills the process
+;; otherwise. Linux does not care, which is how this was missed at first.
 (require '[babashka.ffi :as ffi]
          '[babashka.fs :as fs]
          '[babashka.process :as p]
@@ -53,9 +57,8 @@
 (defn console-text [] (apply str (map second (get-in @app/state [:console :segments]))))
 (defn status [] (get-in @app/state [:run :status]))
 
-(def app-thread (future (app/start! {})))
+(defn checks []
 (Thread/sleep 3000)
-
 (println "platform:" platform/os)
 (println "compiler:" (:compiler @app/state))
 
@@ -146,9 +149,11 @@
   (catch Throwable t
     (check (str "unexpected error: " (ex-message t)) false)
     (.printStackTrace t)))
+(ui/close!))
 
-(ui/close!)
-(deref app-thread 10000 nil)
+(def worker (future (checks)))
+(app/start! {})           ; blocks on the main thread until close!
+(deref worker 10000 nil)
 (fs/delete-tree work)
 (println)
 (if (empty? @failures)

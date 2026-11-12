@@ -5,9 +5,10 @@
          '[bbcecko.app :as app] '[gtkiccup.core :as ui] '[gtkiccup.dev :as dev]
          '[clojure.edn :as edn])
 
+;; The app owns the main thread (macOS insists); the steps run on a worker.
 (let [[root prefix & steps] *command-line-args*
       steps (map edn/read-string steps)
-      th (future (app/start! {:root (not-empty root)}))]
+      worker (future
   (Thread/sleep 2500)
   (doseq [s steps]
     (cond
@@ -20,6 +21,7 @@
       (= :swap (first s)) (swap! app/state assoc-in (second s) (nth s 2))
       :else (ui/on-gtk-thread! #(app/handle! {:gtkiccup/args (vec (drop 1 s))} (vec (first s)))))
     (Thread/sleep 400))
-  (ui/close!)
-  (deref th 5000 nil)
+  (ui/close!))]
+  (app/start! {:root (not-empty root)})
+  (deref worker 5000 nil)
   (System/exit 0))

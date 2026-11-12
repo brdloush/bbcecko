@@ -834,6 +834,7 @@
   (g/gtk-init)
   (gs/source-init)
   (bw/style-dir! (th/write-schemes! (str (fs/path (f/cache-dir) "styles"))))
+  (gs/use-base-theme!)
   (reset! css-provider (ui/load-css! "" 800))
   (apply-theme!)
   (check-compiler!)

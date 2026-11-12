@@ -260,8 +260,46 @@
       (object-set-property obj prop gv)
       (value-unset gv))))
 
+(defcfn value-set-enum "g_value_set_enum" [:pointer :int] :void)
+(defcfn value-set-string "g_value_set_string" [:pointer :string] :void)
+
+(def ^:private G-TYPE-STRING (bit-shift-left 16 2))
+
+(defn- set-string-property! [obj prop v]
+  (with-open [arena (ffi/confined-arena)]
+    (let [gv (ffi/alloc arena 24 8)]
+      (ffi/write gv :long 0) (ffi/write gv :long 0 8) (ffi/write gv :long 0 16)
+      (value-init gv G-TYPE-STRING)
+      (value-set-string gv v)
+      (object-set-property obj prop gv)
+      (value-unset gv))))
+
+(defn use-base-theme!
+  "GTK's own Adwaita as the base under our stylesheet, whatever the desktop
+   uses. The look is then the same on every system, and a distro theme whose
+   dark variant is missing (Ubuntu's Yaru colours) cannot spill warnings."
+  []
+  (set-string-property! (settings-get-default) "gtk-theme-name" "Adwaita"))
+
+(def ^:private color-scheme-type
+  "GtkInterfaceColorScheme's GType, on GTK 4.20 and later; nil before."
+  (delay
+    (try ((ffi/cfn "gtk_interface_color_scheme_get_type" [] :long))
+         (catch Throwable _ nil))))
+
 (defn prefer-dark!
   "Switches GTK's own widgets between their light and dark look, so anything
-   our stylesheet does not cover still matches the theme."
+   our stylesheet does not cover still matches the theme. GTK 4.20 replaced
+   the old boolean with gtk-interface-color-scheme and warns about the old
+   one, so the new property wins when it exists."
   [dark?]
-  (set-bool-property! (settings-get-default) "gtk-application-prefer-dark-theme" dark?))
+  (if-let [gtype @color-scheme-type]
+    (with-open [arena (ffi/confined-arena)]
+      (let [gv (ffi/alloc arena 24 8)]
+        (ffi/write gv :long 0) (ffi/write gv :long 0 8) (ffi/write gv :long 0 16)
+        (value-init gv gtype)
+        ;; GTK_INTERFACE_COLOR_SCHEME_DARK = 2, _LIGHT = 3
+        (value-set-enum gv (if dark? 2 3))
+        (object-set-property (settings-get-default) "gtk-interface-color-scheme" gv)
+        (value-unset gv)))
+    (set-bool-property! (settings-get-default) "gtk-application-prefer-dark-theme" dark?)))
