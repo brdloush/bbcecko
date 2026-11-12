@@ -8,6 +8,7 @@
    which is what a student will paste into a search engine."
   (:require [babashka.fs :as fs]
             [babashka.process :as p]
+            [bbcecko.platform :as platform]
             [clojure.string :as str]))
 
 ;; ---------------------------------------------------------------------------
@@ -15,9 +16,20 @@
 ;; ---------------------------------------------------------------------------
 
 (def candidates
-  "Preferred first. g++ is what the school's Code::Blocks uses."
-  [{:cxx "g++"     :cc "gcc"}
-   {:cxx "clang++" :cc "clang"}])
+  "Preferred first. g++ is what the school's Code::Blocks uses. On a Mac,
+   g++ is only a name for Apple's clang, so ask for clang++ directly."
+  (if platform/mac?
+    [{:cxx "clang++" :cc "clang"}]
+    [{:cxx "g++"     :cc "gcc"}
+     {:cxx "clang++" :cc "clang"}]))
+
+(defn- mac-tools-installed?
+  "On a Mac /usr/bin/clang++ always exists, but without the command line
+   tools it only pops up an installer and fails. xcode-select knows."
+  []
+  (try (zero? (:exit (p/shell {:out :string :err :string :continue true}
+                              "xcode-select" "-p")))
+       (catch Exception _ false)))
 
 (defn- version-of [exe]
   (try
@@ -28,17 +40,21 @@
     (catch Exception _ nil)))
 
 (defn detect
-  "{:status :ok :cxx path :cc path :name \"g++\" :version \"...\"} or
-   {:status :missing}."
+  "{:status :ok :cxx path :cc path :name \"g++\" :version \"...\" :clang? b}
+   or {:status :missing}."
   []
-  (or (some (fn [{:keys [cxx cc]}]
-              (when-let [path (fs/which cxx)]
-                {:status :ok
-                 :name cxx
-                 :cxx (str path)
-                 :cc (some-> (fs/which cc) str)
-                 :version (version-of (str path))}))
-            candidates)
+  (or (when (or (not platform/mac?) (mac-tools-installed?))
+        (some (fn [{:keys [cxx cc]}]
+                (when-let [path (fs/which cxx)]
+                  (let [v (version-of (str path))]
+                    (when v
+                      {:status :ok
+                       :name cxx
+                       :cxx (str path)
+                       :cc (some-> (fs/which cc) str)
+                       :version v
+                       :clang? (boolean (re-find #"(?i)clang" v))}))))
+              candidates))
       {:status :missing}))
 
 (defn- os-release []
@@ -51,8 +67,10 @@
     (catch Exception _ {})))
 
 (defn install-hint
-  "The one command that installs a compiler on this distro."
-  ([] (install-hint (os-release)))
+  "The one command that installs a compiler on this system."
+  ([] (if platform/mac?
+        {:distro "macOS" :cmd "xcode-select --install"}
+        (install-hint (os-release))))
   ([{:strs [ID ID_LIKE PRETTY_NAME]}]
    (let [ids (set (str/split (str ID " " ID_LIKE) #"\s+"))
          cmd (cond
@@ -76,15 +94,17 @@
         base (str/replace (str (fs/file-name src)) #"\.[^.]+$" "")]
     (str (fs/path cache-dir "build" h base))))
 
-(defn compile-cmd [{:keys [cxx cc]} src out]
-  (let [c? (= "c" (some-> (re-find #"\.([^.]+)$" src) second str/lower-case))]
+(defn compile-cmd
+  "GCC and Clang share the diagnostic format but not the flags that keep it
+   plain: Clang rejects GCC's -fdiagnostics-plain-output."
+  [{:keys [cxx cc clang?]} src out]
+  (let [c?    (= "c" (some-> (re-find #"\.([^.]+)$" src) second str/lower-case))
+        plain (if clang?
+                ["-fno-color-diagnostics" "-fno-caret-diagnostics" "-fno-diagnostics-fixit-info"]
+                ["-fdiagnostics-plain-output" "-fmessage-length=0" "-fdiagnostics-color=never"])]
     (if c?
-      [(or cc "gcc") "-std=c17" "-Wall" "-g" "-O0"
-       "-fdiagnostics-plain-output" "-fmessage-length=0" "-fdiagnostics-color=never"
-       "-o" out src "-lm"]
-      [cxx "-std=c++17" "-Wall" "-g" "-O0"
-       "-fdiagnostics-plain-output" "-fmessage-length=0" "-fdiagnostics-color=never"
-       "-o" out src])))
+      (-> [(or cc "gcc") "-std=c17" "-Wall" "-g" "-O0"] (into plain) (into ["-o" out src "-lm"]))
+      (-> [cxx "-std=c++17" "-Wall" "-g" "-O0"] (into plain) (into ["-o" out src])))))
 
 (def ^:private diag-re
   #"^(.+?):(\d+):(?:(\d+):)? (fatal error|error|warning|note): (.*)$")
@@ -118,7 +138,15 @@
               (recur (rest ls)
                      (conj acc {:file file :line (parse-long ln) :col (some-> col parse-long)
                                 :severity sev :message msg :tip (tip-for msg)}))))
-          (if-let [[_ msg] (re-find #"(?:\(\.text.*?\)|\.o:[^:]*): (undefined reference to .*)$" line)]
+          (if-let [msg (or
+                         ;; GNU ld
+                         (second (re-find #"(?:\(\.text.*?\)|\.o:[^:]*): (undefined reference to .*)$" line))
+                         ;; Apple ld: '  "foo()", referenced from:'
+                         (some->> (re-find #"^\s+\"(.+)\", referenced from:" line) second
+                                  (format "undefined reference to `%s'"))
+                         ;; lld
+                         (some->> (re-find #"undefined symbol: (.+)$" line) second
+                                  (format "undefined reference to `%s'")))]
             (recur (rest ls)
                    (conj acc {:file nil :line nil :col nil :severity :error
                               :message msg :tip (tip-for msg) :linker? true}))

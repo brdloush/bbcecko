@@ -68,7 +68,12 @@
    [kind text], kind :out or :err, and finally (on-exit {:code n :ms n}).
    Returns a handle for send!, close-input! and stop!."
   [exe dir {:keys [on-output on-exit skipped-note]}]
-  (let [cmd     (if-let [sb (fs/which "stdbuf")] [(str sb) "-o0" "-e0" exe] [exe])
+  ;; stdbuf is GNU coreutils: on a Mac it exists only as gstdbuf, if at all.
+  ;; Without it C++ still works -- cin flushes cout before it waits -- only a
+  ;; C printf prompt would wait in the buffer.
+  (let [cmd     (if-let [sb (or (fs/which "stdbuf") (fs/which "gstdbuf"))]
+                  [(str sb) "-o0" "-e0" exe]
+                  [exe])
         proc    (apply p/process {:dir dir :in :pipe :out :pipe :err :pipe
                             :extra-env {"LC_ALL" "C.UTF-8"}}
                                  cmd)

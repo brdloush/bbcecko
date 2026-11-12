@@ -24,3 +24,4 @@ Start: 2026-11-12 13:22
   - Testy: 11 testů / 38 asercí (parsování chyb gcc/clang, soubory, spouštění se vstupem, zastavení floodu).
   - Ověřeno headless screenshoty: všech 6 témat, chyby, vstup, flood, menu témat, zoom, zkratky.
 - **2026-11-12 13:45** – hotovo: konzole po doběhnutí programu spolehlivě sjede na konec. Appka připravená ke spuštění přes `bb run`. Další krok (fáze 2): GitHub page.
+- **2026-11-12 14:03** – příprava na macOS: clang++ (jiné přepínače, detekce Xcode CLT, návod `xcode-select --install`), ⌘ místo Ctrl, tlačítka okna vlevo, mac písma, koš se zálohou bez GIO, parsování chyb linkeru od Applu. Ukázkové programy v `examples/`, `bb smoke` (proklikne appku, ověří a nafotí). GitHub Actions workflow pro macOS.

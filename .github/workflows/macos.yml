@@ -1,0 +1,54 @@
+name: macOS
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  macos:
+    runs-on: macos-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: bbcecko
+
+      # bb.edn expects gtkiccup at ../gtkiccup (see TODO.md)
+      - uses: actions/checkout@v4
+        with:
+          repository: brdloush/gtkiccup
+          path: gtkiccup
+
+      - name: Install babashka, GTK4, GtkSourceView 5
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: "1"
+          HOMEBREW_NO_INSTALL_CLEANUP: "1"
+        run: brew install borkdude/brew/babashka gtk4 gtksourceview5
+
+      - name: Versions
+        run: |
+          sw_vers
+          uname -m
+          bb --version
+          xcode-select -p
+          clang++ --version
+          pkg-config --modversion gtk4 gtksourceview-5 || true
+          ls "$(brew --prefix)/lib" | grep -E "gtk-4|gtksourceview|gio-2" || true
+
+      - name: Tests
+        working-directory: bbcecko
+        run: bb test
+
+      - name: Smoke test with screenshots
+        working-directory: bbcecko
+        env:
+          LANG: cs_CZ.UTF-8
+        run: bb smoke "$GITHUB_WORKSPACE/shots"
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-screenshots
+          path: shots
+          if-no-files-found: warn

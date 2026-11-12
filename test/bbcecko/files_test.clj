@@ -43,3 +43,20 @@
   (is (= :h (f/kind "a.hpp")))
   (is (f/runnable? "a.c"))
   (is (not (f/runnable? "a.h"))))
+
+(deftest trash-by-hand
+  (let [dir   (str (fs/create-temp-dir))
+        home  (str (fs/create-temp-dir))
+        file  (str (fs/path dir "x.cpp"))]
+    (spit file "int main(){}")
+    (with-redefs [fs/home (constantly (fs/path home))]
+      (testing "mac: into ~/.Trash"
+        (is (f/trash-by-hand! file true))
+        (is (not (fs/exists? file)))
+        (is (fs/exists? (fs/path home ".Trash" "x.cpp"))))
+      (testing "a second file of the same name does not overwrite the first"
+        (spit file "2")
+        (is (f/trash-by-hand! file true))
+        (is (= "2" (slurp (str (fs/path home ".Trash" "x.2.cpp")))))))
+    (fs/delete-tree dir)
+    (fs/delete-tree home)))

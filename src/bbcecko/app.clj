@@ -12,6 +12,7 @@
             [bbcecko.files :as f]
             [bbcecko.gtk :as gs]
             [bbcecko.i18n :as i18n :refer [t]]
+            [bbcecko.platform :as platform]
             [bbcecko.runner :as runner]
             [bbcecko.themes :as th]
             [bbcecko.widgets :as bw]
@@ -400,7 +401,7 @@
                               (update :docs #(apply dissoc % open))
                               (update :active #(if (some #{%} open) nil %))))))
   (swap! state #(update % :active (fn [a] (or a (last (:tabs %))))))
-  (if (gs/trash! path)
+  (if (or (gs/trash! path) (f/trash-by-hand! path platform/mac?))
     (toast! (t :toast/trashed (fs/file-name path)))
     (toast! (t :toast/error (str path)) true))
   (swap! state assoc :confirm-delete nil :selected nil)
@@ -414,8 +415,10 @@
   (swap! state update :font-size #(-> (if (zero? d) 15 (+ % d)) (max 10) (min 32)))
   (apply-theme!))
 
-(defn- on-key [{:keys [key ctrl? shift?]}]
-  (let [k (str/lower-case (str key))]
+(defn- on-key [{:keys [key ctrl? cmd? shift?]}]
+  (let [k (str/lower-case (str key))
+        ;; Command on a Mac does what Ctrl does elsewhere
+        ctrl? (or ctrl? (and platform/mac? cmd?))]
     (cond
       (and (= k "f5") shift?)                          (do (stop!) true)
       (or (= k "f5") (and ctrl? (#{"r" "return"} k)))  (do (run!) true)
@@ -572,7 +575,9 @@
        [:hbox {:spacing 8}
         [:icon {:icon "dialog-warning-symbolic" :size 18}]
         [:label {:class "title" :label (t :compiler/missing-title) :xalign 0}]]
-       [:label {:label (str (t :compiler/missing-sub) " (" distro ")") :wrap true :xalign 0}]
+       [:label {:label (str (t (if platform/mac? :compiler/missing-sub-mac :compiler/missing-sub))
+                            " (" distro ")")
+                :wrap true :xalign 0}]
        [:hbox {:spacing 8}
         [:label {:class "cmd" :label cmd :selectable true :xalign 0 :hexpand true}]
         [:button {:class "pill" :label (t :compiler/copy) :on-click [:compiler/copy cmd]}]
@@ -719,6 +724,8 @@
   [:window-handle
    [:center-box {:class "topbar"}
     [:hbox {:slot :start :spacing 10}
+     ;; a Mac puts close/minimise/zoom on the left
+     (when platform/mac? [:window-controls {:side :start :valign :center}])
      [:label {:class "brand-mark" :label "C++" :valign :center}]
      [:label {:class "brand" :label (t :app/name) :valign :center}]
      (when root
@@ -779,7 +786,7 @@
 
 (defn page []
   (let [{:keys [root] :as st} @state]
-    [:overlay {:on-key [:key]}
+    [:overlay {:on-shortcut [:key]}
      [:vbox {:class "app"}
       (topbar st)
       (if-not root

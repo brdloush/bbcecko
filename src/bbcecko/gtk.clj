@@ -7,10 +7,28 @@
    stack; here they are allocated in a confined arena for the length of one
    call chain (`with-iter`, `rgba`)."
   (:require [babashka.ffi :as ffi :refer [defcfn]]
+            [babashka.fs :as fs]
+            [bbcecko.platform :as platform]
             [gtkiccup.ffi :as g]))
 
-(g/load-gtk-library "gtksourceview-5" 0)
-(g/load-gtk-library "gio-2.0" 0)
+(defn- load-lib!
+  "Like gtkiccup's loader, plus Homebrew's lib folders on a Mac, where the
+   dylib may not be on the default search path."
+  [short abi]
+  (try
+    (g/load-gtk-library short abi)
+    (catch Throwable e
+      (if-let [f (when platform/mac?
+                   (first (for [prefix platform/brew-prefixes
+                                name [(str "lib" short ".dylib") (str "lib" short "." abi ".dylib")]
+                                :let [f (str prefix "/lib/" name)]
+                                :when (fs/exists? f)]
+                            f)))]
+        (ffi/load-library f)
+        (throw e)))))
+
+(load-lib! "gtksourceview-5" 0)
+(load-lib! "gio-2.0" 0)
 
 ;; -- memory ------------------------------------------------------------------
 

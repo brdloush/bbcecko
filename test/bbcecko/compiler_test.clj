@@ -54,3 +54,20 @@ collect2: error: ld returned 1 exit status")
         (is (= 3 (:line (first (:diagnostics r)))))
         (is (= :tip/missing-semicolon (:tip (first (:diagnostics r))))))
       (fs/delete-tree dir))))
+
+(deftest parses-apple-linker
+  (let [ds (c/parse-diagnostics "Undefined symbols for architecture arm64:\n  \"foo()\", referenced from:\n      _main in x.o\nld: symbol(s) not found for architecture arm64\nclang++: error: linker command failed with exit code 1 (use -v to see invocation)\n")]
+    (is (= [{:message "undefined reference to `foo()'" :linker? true :tip :tip/undefined-ref}]
+           (map #(select-keys % [:message :linker? :tip]) ds)))))
+
+(deftest compiles-with-clang
+  (when-let [clang (some-> (fs/which "clang++") str)]
+    (let [dir (str (fs/create-temp-dir))
+          bad (str (fs/path dir "bad.cpp"))
+          cc  {:status :ok :cxx clang :clang? true}]
+      (spit bad "int main() {\n  int x = 5\n  return y;\n}\n")
+      (let [{:keys [ok? diagnostics]} (c/compile! cc dir bad)]
+        (is (not ok?))
+        (is (every? :line diagnostics) "clang output parses into located errors")
+        (is (= :tip/missing-semicolon (:tip (first diagnostics)))))
+      (fs/delete-tree dir))))

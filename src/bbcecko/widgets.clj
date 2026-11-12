@@ -22,6 +22,28 @@
 (defn- addr [p] (ffi/address p))
 
 ;; ---------------------------------------------------------------------------
+;; :on-shortcut
+;; ---------------------------------------------------------------------------
+
+;; gtkiccup's :on-key reports ctrl/alt/shift/super. On a Mac the shortcut key
+;; is Command, which GTK reports as META (or SUPER on some versions), so this
+;; variant passes a :cmd? flag too. Same controller, same capture phase.
+(def ^:private SUPER-MASK (bit-shift-left 1 26))
+(def ^:private META-MASK (bit-shift-left 1 28))
+
+(ui/register-signal!
+  :on-shortcut "key-pressed"
+  (fn [f _w [_ctrl keyval _keycode state _data]]
+    (when-let [name (g/keyval-name keyval)]
+      (f (assoc (g/modifiers state)
+                :key name
+                :cmd? (pos? (bit-and (or state 0) (bit-or SUPER-MASK META-MASK)))))))
+  {:controller g/event-controller-key-new
+   :attach :window
+   :argtypes [:pointer :int :int :int :pointer]
+   :rettype :int})
+
+;; ---------------------------------------------------------------------------
 ;; :code-editor
 ;; ---------------------------------------------------------------------------
 

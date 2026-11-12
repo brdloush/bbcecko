@@ -2,7 +2,8 @@
   "Czech and English, picked from the system locale. A missing key falls back
    to English, then to the key's own name, so a gap shows up on screen instead
    of breaking a render."
-  (:require [clojure.string :as str]))
+  (:require [bbcecko.platform :as platform]
+            [clojure.string :as str]))
 
 (defn- plural-cs
   "Czech has three forms: 1 chyba, 2-4 chyby, 5+ chyb."
@@ -80,6 +81,7 @@
     :tip/string "Tip: add #include <string> and using namespace std;"
     :compiler/missing-title "No C++ compiler found"
     :compiler/missing-sub "bbCéčko needs g++ (or clang++) to turn your code into a program. Install it with:"
+    :compiler/missing-sub-mac "bbCéčko needs Apple's command line tools (clang++) to turn your code into a program. Install them with:"
     :compiler/copy "Copy"
     :compiler/copied "Copied to clipboard"
     :compiler/recheck "Check again"
@@ -164,6 +166,7 @@
     :tip/string "Tip: přidej #include <string> a using namespace std;"
     :compiler/missing-title "Chybí kompilátor C++"
     :compiler/missing-sub "bbCéčko potřebuje g++ (nebo clang++), aby z kódu udělal program. Nainstaluješ ho takhle:"
+    :compiler/missing-sub-mac "bbCéčko potřebuje vývojářské nástroje od Applu (clang++), aby z kódu udělal program. Nainstaluješ je takhle:"
     :compiler/copy "Kopírovat"
     :compiler/copied "Zkopírováno do schránky"
     :compiler/recheck "Zkontrolovat znovu"
@@ -194,6 +197,8 @@
 
 (defn t [k & args]
   (let [v (or (get-in strings [*lang* k]) (get-in strings [:en k]) (str (symbol k)))]
-    (cond (fn? v) (apply v args)
-          (seq args) (apply format v args)
-          :else v)))
+    (cond-> (cond (fn? v) (apply v args)
+                  (seq args) (apply format v args)
+                  :else v)
+      ;; a Mac user presses Command, and reads it as ⌘
+      (and platform/mac? (string? v)) (str/replace "Ctrl+" "⌘"))))

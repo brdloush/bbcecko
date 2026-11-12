@@ -156,6 +156,46 @@ int main() {
         (try (fs/create-dirs p) {:path p}
              (catch Exception e {:error :io :message (ex-message e)}))))))
 
+(defn- unique-in
+  "A name in `dir` that is not taken yet: x.cpp, x.2.cpp, x.3.cpp ..."
+  [dir name]
+  (let [[_ base ext] (re-matches #"(.*?)(\.[^.]*)?" name)]
+    (first (for [i (cons nil (iterate inc 2))
+                 :let [n (str base (when i (str "." i)) ext)]
+                 :when (not (fs/exists? (fs/path dir n)))]
+             n))))
+
+(defn trash-by-hand!
+  "Moves `path` into the user's trash without GIO. For when g_file_trash
+   refuses: a folder on a filesystem with no trash of its own (tmpfs, a USB
+   stick), or a GLib without trash support on the Mac. Linux gets the
+   freedesktop layout (files/ plus an info/ record, so the desktop's trash
+   can restore it); the Mac just ~/.Trash. Returns true when it worked."
+  [path mac?]
+  (try
+    (let [name (str (fs/file-name path))]
+      (if mac?
+        (let [trash (str (fs/path (fs/home) ".Trash"))]
+          (fs/create-dirs trash)
+          (fs/move path (fs/path trash (unique-in trash name)))
+          true)
+        (let [trash (str (fs/path (or (System/getenv "XDG_DATA_HOME")
+                                      (str (fs/home) "/.local/share"))
+                                  "Trash"))
+              files (str (fs/path trash "files"))
+              info  (str (fs/path trash "info"))
+              _     (fs/create-dirs files)
+              _     (fs/create-dirs info)
+              n     (unique-in files name)]
+          (spit (str (fs/path info (str n ".trashinfo")))
+                (str "[Trash Info]\nPath=" (fs/absolutize path)
+                     "\nDeletionDate=" (.format (java.time.LocalDateTime/now)
+                                                 (java.time.format.DateTimeFormatter/ofPattern "yyyy-MM-dd'T'HH:mm:ss"))
+                     "\n"))
+          (fs/move path (fs/path files n))
+          true)))
+    (catch Exception _ false)))
+
 (defn relative [root path]
   (try (str (fs/relativize root path)) (catch Exception _ (str path))))
 

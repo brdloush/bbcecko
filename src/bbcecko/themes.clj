@@ -13,8 +13,8 @@
   (:require [babashka.fs :as fs]
             [clojure.string :as str]))
 
-(def ui-font "Inter, Cantarell, \"Noto Sans\", \"Segoe UI\", \"DejaVu Sans\", sans-serif")
-(def code-font "\"JetBrains Mono\", \"Fira Code\", Hack, \"Noto Sans Mono\", \"DejaVu Sans Mono\", monospace")
+(def ui-font "Inter, Cantarell, \"SF Pro Text\", \"Helvetica Neue\", \"Noto Sans\", \"Segoe UI\", \"DejaVu Sans\", sans-serif")
+(def code-font "\"JetBrains Mono\", \"Fira Code\", \"SF Mono\", Menlo, Hack, \"Noto Sans Mono\", \"DejaVu Sans Mono\", monospace")
 
 (def themes
   "In menu order."

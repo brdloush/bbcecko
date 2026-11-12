@@ -20,6 +20,9 @@
              :requires ([bbcecko.desktop :as d])
              :task (d/uninstall! (System/getProperty "user.dir"))}
 
+  smoke {:doc "Drive the real app end to end and take screenshots. bb smoke [out-dir]"
+         :task (apply shell "bb" "--config" "bb.edn" "dev/smoke.clj" *command-line-args*)}
+
   test {:doc "Run the tests (no window needed)."
         :extra-paths ["test"]
         :requires ([clojure.test :as t] [bbcecko.compiler-test] [bbcecko.files-test] [bbcecko.runner-test])

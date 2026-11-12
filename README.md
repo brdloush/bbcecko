@@ -28,6 +28,19 @@ again.
   the app says so and shows the install command for your distribution.
 - `../gtkiccup` checked out next to this folder
 
+### macOS (not tried on a real Mac yet)
+
+```bash
+brew install borkdude/brew/babashka gtk4 gtksourceview5
+xcode-select --install     # Apple's clang++, if not there yet
+bb run
+```
+
+CI runs the tests and the smoke test on a macOS runner on every push and keeps
+the screenshots as an artifact (`.github/workflows/macos.yml`). On a Mac the
+compiler is clang++, the shortcuts use ⌘ instead of Ctrl, and the window
+buttons sit on the left.
+
 ## Using it
 
 | | |
@@ -70,7 +83,12 @@ folder of its source file, so it can open files next to it.
 | `src/bbcecko/files.clj` | settings, folder listings, creating files |
 | `src/bbcecko/i18n.clj` | Czech and English strings |
 
-`bb test` runs the tests (no window). `dev/shot.clj` drives the app headless
+`examples/` holds a few small programs: one that reads input, one that does not
+compile, an endless loop.
+
+`bb test` runs the tests (no window). `bb smoke [out-dir]` drives the real app
+end to end (welcome, run with input, compile errors, stop, new file, trash,
+every theme) and saves screenshots; it exits 1 if a check fails. `dev/shot.clj` drives the app headless
 and takes screenshots:
 
 ```bash
