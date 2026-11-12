@@ -1,6 +1,7 @@
 {:paths ["src"]
- :deps {io.github.brdloush/gtkiccup {:local/root "../gtkiccup"}
-        no.cjohansen/replicant {:mvn/version "2026.07.1"}}
+ ;; gtkiccup has no release tag yet, so this pins a commit on its main branch.
+ ;; Its deps.edn brings Replicant along.
+ :deps {io.github.brdloush/gtkiccup {:git/sha "a58fcafcd5c8006d9f6b1d2a5eb9c946eec58304"}}
 
  :tasks
  {run {:override-builtin true

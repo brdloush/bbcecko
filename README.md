@@ -5,7 +5,7 @@ button, the program's output and input in the window, and compiler errors you
 can actually read. Six themes, from clean to hacker.
 
 Written in [babashka](https://babashka.org) with
-[gtkiccup](../gtkiccup): plain GTK4 + GtkSourceView 5, no libadwaita.
+[gtkiccup](https://github.com/brdloush/gtkiccup): plain GTK4 + GtkSourceView 5, no libadwaita.
 
 ## Run it
 
@@ -26,7 +26,7 @@ again.
 - GTK 4.10+ and GtkSourceView 5 (`apt install libgtk-4-1 libgtksourceview-5-0`)
 - a C++ compiler: g++ or clang++ (`apt install build-essential`). Without one,
   the app says so and shows the install command for your distribution.
-- `../gtkiccup` checked out next to this folder
+- `git`: babashka fetches gtkiccup from GitHub on the first run
 
 ### macOS (not tried on a real Mac yet)
 
