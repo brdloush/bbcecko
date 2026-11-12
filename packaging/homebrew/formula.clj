@@ -30,7 +30,6 @@
   homepage \"https://github.com/brdloush/bbcecko\"
   url \"" url "\"
   sha256 \"" sha "\"
-  version \"" version "\"
   license \"MIT\"
   head \"https://github.com/brdloush/bbcecko.git\", branch: \"main\"
 
