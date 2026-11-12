@@ -30,7 +30,12 @@
              :task (d/uninstall! (System/getProperty "user.dir"))}
 
   smoke {:doc "Drive the real app end to end and take screenshots. bb smoke [out-dir]"
-         :task (apply shell "bb" "--config" "bb.edn" "dev/smoke.clj" *command-line-args*)}
+         ;; its own config folder: the run picks a temp root and switches
+         ;; themes, and must not leave that in the user's real config
+         :task (let [cfg (str (babashka.fs/create-temp-dir {:prefix "bbcecko-smoke-cfg"}))]
+                 (try (apply shell {:extra-env {"XDG_CONFIG_HOME" cfg}}
+                             "bb" "--config" "bb.edn" "dev/smoke.clj" *command-line-args*)
+                      (finally (babashka.fs/delete-tree cfg))))}
 
   test {:doc "Run the tests (no window needed)."
         :extra-paths ["test"]
