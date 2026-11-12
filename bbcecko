@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# bbcecko launcher. From a terminal with no argument, the current folder
+# becomes the root -- that is what "open the editor in this folder" means.
+DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
+if [ $# -eq 0 ] && [ -t 1 ]; then
+  export BBCECKO_CWD="$PWD"
+fi
+exec bb --config "$DIR/bb.edn" -Xmx256m -m bbcecko.main "$@"

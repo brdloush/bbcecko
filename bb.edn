@@ -1,0 +1,27 @@
+{:paths ["src"]
+ :deps {io.github.brdloush/gtkiccup {:local/root "../gtkiccup"}
+        no.cjohansen/replicant {:mvn/version "2026.07.1"}}
+
+ :tasks
+ {run {:override-builtin true
+       :doc "Start bbCéčko. bb run [folder-or-file]"
+       :requires ([babashka.process])
+       ;; -Xmx keeps the heap small; bb honours it only on the command line,
+       ;; so the task re-execs babashka with it.
+       :task (apply babashka.process/exec
+                    "bb" "--config" "bb.edn" "-Xmx256m" "-m" "bbcecko.main"
+                    *command-line-args*)}
+
+  install {:doc "Put bbcecko on your PATH (~/.local/bin) and in the application menu."
+           :requires ([bbcecko.desktop :as d])
+           :task (d/install! (System/getProperty "user.dir"))}
+
+  uninstall {:doc "Remove what `bb install` added."
+             :requires ([bbcecko.desktop :as d])
+             :task (d/uninstall! (System/getProperty "user.dir"))}
+
+  test {:doc "Run the tests (no window needed)."
+        :extra-paths ["test"]
+        :requires ([clojure.test :as t] [bbcecko.compiler-test] [bbcecko.files-test] [bbcecko.runner-test])
+        :task (let [{:keys [fail error]} (t/run-tests 'bbcecko.compiler-test 'bbcecko.files-test 'bbcecko.runner-test)]
+                (when (pos? (+ fail error)) (System/exit 1)))}}}

@@ -1,0 +1,14 @@
+# tooling caches
+.cpcache/
+.clj-kondo/
+.lsp/
+.nrepl-port
+.calva/
+.idea/
+.vscode/
+*.iml
+
+# editor and OS droppings
+*~
+*.swp
+.DS_Store
