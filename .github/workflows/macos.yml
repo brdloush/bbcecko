@@ -19,11 +19,11 @@ jobs:
           repository: brdloush/gtkiccup
           path: gtkiccup
 
-      - name: Install babashka, GTK4, GtkSourceView 5
+      - name: Install babashka, GTK4, GtkSourceView 5, icons
         env:
           HOMEBREW_NO_AUTO_UPDATE: "1"
           HOMEBREW_NO_INSTALL_CLEANUP: "1"
-        run: brew install borkdude/brew/babashka gtk4 gtksourceview5
+        run: brew install borkdude/brew/babashka gtk4 gtksourceview5 adwaita-icon-theme
 
       - name: Versions
         run: |

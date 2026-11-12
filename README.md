@@ -31,7 +31,7 @@ again.
 ### macOS (not tried on a real Mac yet)
 
 ```bash
-brew install borkdude/brew/babashka gtk4 gtksourceview5
+brew install borkdude/brew/babashka gtk4 gtksourceview5 adwaita-icon-theme
 xcode-select --install     # Apple's clang++, if not there yet
 bb run
 ```

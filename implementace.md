@@ -25,3 +25,4 @@ Start: 2026-11-12 13:22
   - Ověřeno headless screenshoty: všech 6 témat, chyby, vstup, flood, menu témat, zoom, zkratky.
 - **2026-11-12 13:45** – hotovo: konzole po doběhnutí programu spolehlivě sjede na konec. Appka připravená ke spuštění přes `bb run`. Další krok (fáze 2): GitHub page.
 - **2026-11-12 14:03** – příprava na macOS: clang++ (jiné přepínače, detekce Xcode CLT, návod `xcode-select --install`), ⌘ místo Ctrl, tlačítka okna vlevo, mac písma, koš se zálohou bez GIO, parsování chyb linkeru od Applu. Ukázkové programy v `examples/`, `bb smoke` (proklikne appku, ověří a nafotí). GitHub Actions workflow pro macOS.
+- **2026-11-12 14:14** – macOS v GitHub Actions: testy i smoke test prošly na macOS 26 (arm64, Apple clang 21). Opraveno: GTK musí na Macu běžet v hlavním vlákně (smoke/shot), nové API pro tmavý režim (GTK 4.20+), základní téma Adwaita, ikony (brew `adwaita-icon-theme`), jazyk z nastavení macOS při spuštění z Docku.

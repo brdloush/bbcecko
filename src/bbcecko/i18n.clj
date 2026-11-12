@@ -2,7 +2,8 @@
   "Czech and English, picked from the system locale. A missing key falls back
    to English, then to the key's own name, so a gap shows up on screen instead
    of breaking a render."
-  (:require [bbcecko.platform :as platform]
+  (:require [babashka.process]
+            [bbcecko.platform :as platform]
             [clojure.string :as str]))
 
 (defn- plural-cs
@@ -186,9 +187,23 @@
 
 (def ^:dynamic *lang* :en)
 
+(defn- mac-language
+  "The first preferred language from macOS settings, e.g. \"cs-CZ\". An app
+   started from the Dock or Finder gets no LANG at all, so this is the only
+   place a Mac says what language its user reads."
+  []
+  (try
+    (let [{:keys [out exit]} @(babashka.process/process
+                               {:out :string :err :string}
+                               "defaults" "read" "-g" "AppleLanguages")]
+      (when (zero? exit)
+        (second (re-find #"\"?([A-Za-z]{2}[^\",\s]*)" out))))
+    (catch Exception _ nil)))
+
 (defn detect
   "cs when the locale says Czech (or Slovak, which reads Czech fine), else en."
-  ([] (detect (or (System/getenv "LC_ALL") (System/getenv "LC_MESSAGES") (System/getenv "LANG"))))
+  ([] (detect (or (System/getenv "LC_ALL") (System/getenv "LC_MESSAGES") (System/getenv "LANG")
+                  (when platform/mac? (mac-language)))))
   ([locale]
    (let [s (some-> locale str/lower-case)]
      (if (and s (or (str/starts-with? s "cs") (str/starts-with? s "sk"))) :cs :en))))
